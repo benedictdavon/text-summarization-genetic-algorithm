@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data files
+*.npy
+*.csv
+*.xlsx
+*.txt
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Report Template
+Final Project Report - 110550201.pdf
+Project Report.docx
