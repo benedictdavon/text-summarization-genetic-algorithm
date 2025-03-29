@@ -1,0 +1,8 @@
+numpy
+pandas
+nltk
+tqdm
+rouge-score
+transformers
+sentence-transformers
+scikit-learn
