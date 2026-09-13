@@ -1,7 +1,8 @@
-import numpy as np
 import random
 from typing import List, Tuple
-from rouge import Rouge
+
+import numpy as np
+from rouge_score import rouge_scorer
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
 
@@ -27,7 +28,7 @@ class TextSummarizerGA:
         """
         Initialize Genetic Algorithm for Text Summarization with enhanced logging
         """
-        self.sentence_embeddings = sentence_embeddings
+        self.sentence_embeddings = np.asarray(sentence_embeddings)
         self.original_sentences = original_sentences
         self.reference_summaries = reference_summaries
         self.population_size = population_size
@@ -37,8 +38,17 @@ class TextSummarizerGA:
         self.preferred_summary_length = preferred_summary_length
         self.num_sentences = len(original_sentences)
 
+        if self.sentence_embeddings.ndim != 2:
+            raise ValueError("sentence_embeddings must be a 2-D array")
+        if len(self.sentence_embeddings) != self.num_sentences:
+            raise ValueError("sentence_embeddings must have one row per original sentence")
+        if not self.reference_summaries or any(not reference.strip() for reference in self.reference_summaries):
+            raise ValueError("reference_summaries must contain non-empty text")
+        if self.population_size < 3:
+            raise ValueError("population_size must be at least 3 for tournament selection")
+
         # Initialize ROUGE evaluator
-        self.rouge = Rouge()
+        self.rouge = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
 
         # Logging setup
         logger.info(f"Initializing Genetic Algorithm")
@@ -110,10 +120,7 @@ class TextSummarizerGA:
 
         # Content preservation (ROUGE)
         summary = " ".join(selected_sentences)
-        rouge_scores = [
-            self.rouge.get_scores(summary, ref)[0]["rouge-l"]["f"]
-            for ref in self.reference_summaries
-        ]
+        rouge_scores = [self.rouge.score(ref, summary)["rougeL"].fmeasure for ref in self.reference_summaries]
         content_score = np.mean(rouge_scores)
 
         # Diversity (minimize redundancy)
@@ -180,6 +187,8 @@ class TextSummarizerGA:
         Returns:
             Two offspring chromosomes
         """
+        if self.num_sentences < 2:
+            return parent1.copy(), parent2.copy()
         crossover_point = random.randint(1, self.num_sentences - 1)
 
         child1 = np.concatenate([parent1[:crossover_point], parent2[crossover_point:]])

@@ -1,0 +1,9 @@
+{
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_dimension": 384,
+  "dataset_revision": "record the exact dataset revision here",
+  "documents": [
+    {"dataset_index": 0, "start": 0, "end": 4, "sentence_count": 4}
+  ],
+  "embedding_file": "sentence_embeddings.npy"
+}

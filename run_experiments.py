@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 import logging
+from pathlib import Path
 
-from datasets import load_dataset
 from nltk.tokenize import sent_tokenize
 
 from src.text_summarizer import TextSummarizerGA
-from src.utils import load_embeddings_in_chunks, print_file_size, load_custom_dataset
+from src.utils import aligned_embedding_slice, load_custom_dataset, load_embedding_manifest, load_embeddings_in_chunks
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def experiment(population_sizes, max_generations_list, text_indices, inputs, references, sentence_embeddings):
+def experiment(population_sizes, max_generations_list, text_indices, inputs, references, sentence_embeddings, manifest, output_path):
     # Iterate through parameters and text indices
     results = []
     for population_size in population_sizes:
@@ -28,7 +28,7 @@ def experiment(population_sizes, max_generations_list, text_indices, inputs, ref
                 input_references = [references[text_index]]
 
                 # Get embeddings for this specific input
-                input_sentence_embeddings = sentence_embeddings[:len(input_sentences)]
+                input_sentence_embeddings = aligned_embedding_slice(manifest, text_index, sentence_embeddings, len(input_sentences))
 
                 # Initialize and run genetic algorithm
                 ga_summarizer = TextSummarizerGA(
@@ -59,16 +59,24 @@ def experiment(population_sizes, max_generations_list, text_indices, inputs, ref
                 df = pd.DataFrame(results)
 
                 # Save to CSV
-                df.to_csv("experiment_results.csv", index=False)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                df.to_csv(output_path, index=False)
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Run the reference-guided summarization experiment.")
+    parser.add_argument("--embedding-manifest", required=True, type=Path)
+    parser.add_argument("--output", default="result/experiment_results.csv", type=Path)
+    args = parser.parse_args()
     # # Define parameters
     # text_index = 1
     # population_size = 500
     # max_generations = 500
 
-    # Load data and embeddings (as you've already done)
-    end_index = 1000  # Example end index
+    # Fail closed before downloading the external dataset if the required
+    # aligned artifact manifest is absent.
+    manifest = load_embedding_manifest(args.embedding_manifest)
+    end_index = 1000
     inputs, references = load_custom_dataset(end_index=end_index)
     
     # logger.info(f"Dataset is loaded with {len(inputs)} samples")
@@ -78,7 +86,7 @@ def main():
     
     # print_file_size('sentence_embeddings.npy')
     # # Load pre-computed sentence embeddings
-    sentence_embeddings = load_embeddings_in_chunks('data/sentence_embeddings.npy', end_index=end_index)
+    sentence_embeddings = load_embeddings_in_chunks(manifest["embedding_file"], end_index=end_index)
     
     # # Select a specific input to summarize (first example)
     
@@ -111,7 +119,7 @@ def main():
     max_generations_list = [10, 50, 100]  # Example max generations
     text_indices = range(5)  # First ten texts (index 0-9)
 
-    experiment(population_sizes, max_generations_list, text_indices, inputs, references, sentence_embeddings)
+    experiment(population_sizes, max_generations_list, text_indices, inputs, references, sentence_embeddings, manifest, args.output)
 
 if __name__ == "__main__":
     main()
